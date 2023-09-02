@@ -1,0 +1,32 @@
+{
+  "conda_env": "master_env_3_8",
+  "script": "train.py",
+  "slurm_params":{
+    "nodes":4,
+    "gres":"gpu:1",
+    "ntasks-per-node":1,
+    "mem":0,
+    "output":"/home/ai21m034/master_project/logs/train/slurm_logs/"
+  },
+  "args_convnext": {
+    "name": "convnext",
+    "trainer_config": "/home/ai21m034/master_project/configs/trainer_ddp.json",
+    "model_config": "/home/ai21m034/master_project/configs/convnext.json",
+    "nodes": null,
+    "tasks": null
+  },
+  "args_convnextv2": {
+    "name": "convnextv2",
+    "trainer_config": "/home/ai21m034/master_project/configs/trainer_ddp.json",
+    "model_config": "/home/ai21m034/master_project/configs/convnextv2.json",
+    "nodes": null,
+    "tasks": null
+  },
+  "args_efficentnet": {
+    "name": "efficientnet",
+    "trainer_config": "/home/ai21m034/master_project/configs/trainer_ddp.json",
+    "model_config": "/home/ai21m034/master_project/configs/efficent_net_b7.json",
+    "nodes": null,
+    "tasks": null
+  }
+}

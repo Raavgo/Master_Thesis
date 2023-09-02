@@ -1,0 +1,12 @@
+/data/
+/logs/
+/model/weights/
+/conda_cache/
+/lightning_logs/
+/preprocess/conda_cache/
+/preprocess/pairs
+/preprocess/.uuid
+/preprocess/preprocess.sh
+/stats.out
+/pairs
+/.uuid
