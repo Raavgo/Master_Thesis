@@ -1,0 +1,77 @@
+{
+    "name": "Efficientnet",
+    "project_base": "/home/ai21m034/master_project",
+    "path": "/model/weights/",
+    "mode": "baseline",
+
+    "model_config":{
+        "network": "efficientnet",
+        "encoder": "tf_efficientnet_b4_ns",
+        "epochs": 100,
+        "batch_size": 1,
+        "sample_size": 24,
+        "size": 380,
+        "fp16": true,
+        "dropout": 0.0,
+        "optimizer": {
+            "batch_size": 4,
+            "type": "SGD",
+            "momentum":  0.9,
+            "weight_decay": 1e-4,
+            "learning_rate": 0.0075,
+            "nesterov": true,
+            "schedule": {
+                "type": "poly",
+                "mode": "step",
+                "epochs": 5,
+                "params": {
+                    "total_iters": 100500
+                }
+            }
+        },
+        "normalize": {
+            "mean": [
+                0.485,
+                0.456,
+                0.406
+            ],
+            "std": [
+                0.229,
+                0.224,
+                0.225
+            ]
+        },
+        "loss_fn": "BinaryCrossentropy"
+    },
+    "trainer_config":{
+        "train_path": "/data/data/train",
+        "validation_path": "/data/data/validation",
+        "test_path" : "/data/data/test",
+        "num_workers": 4,
+        "model_checkpoint": {
+            "filename": "best-",
+            "dirpath": "",
+            "save_top_k":1,
+            "mode": "min",
+            "monitor": "val_loss_epoch"
+        },
+        "early_stopping": {
+            "monitor": "val_loss_epoch",
+            "mode":"min",
+            "patience": 5
+        },
+        "logger": {
+            "save_dir": "/logs/train/"
+        },
+        "trainer": {
+            "accelerator": "gpu",
+            "precision": "16-mixed",
+            "devices": 1,
+            "num_nodes": 4,
+            "log_every_n_steps": 10,
+            "strategy": "deepspeed_stage_2",
+            "deterministic": true,
+            "max_epochs": 100
+        }
+    }
+}

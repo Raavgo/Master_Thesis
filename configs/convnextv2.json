@@ -1,7 +1,7 @@
 {
     "network": "convnext_v2",
     "encoder": "convnextv2_base_384",
-    "epochs": 100,
+    "epochs": 1000,
     "batch_size": 1,
     "sample_size": 14,
     "size": 384,

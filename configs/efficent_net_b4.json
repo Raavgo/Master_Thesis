@@ -1,0 +1,29 @@
+{
+    "network": "efficientnet",
+    "encoder": "tf_efficientnet_b4_ns",
+    "epochs": 100,
+    "batch_size": 2,
+    "sample_size": 12,
+    "size": 380,
+    "fp16": true,
+    "dropout": 0.0,
+    "optimizer": {
+        "batch_size": 4,
+        "type": "SGD",
+        "momentum": 0.9,
+        "weight_decay": 1e-4,
+        "learning_rate": 0.0075,
+        "nesterov": true,
+        "schedule": {
+            "type": "poly",
+            "mode": "step",
+            "epochs": 5,
+            "params": {"total_iters":  100500}
+        }
+    },
+    "normalize": {
+        "mean": [0.485, 0.456, 0.406],
+        "std": [0.229, 0.224, 0.225]
+    },
+    "loss_fn":"BinaryCrossentropy"
+}

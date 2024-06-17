@@ -54,9 +54,11 @@ def augment(image, payload):
 def apply_augmentation(image, image_shape, diff, diff_shape, landmark):
     image = np.frombuffer(image, dtype=np.uint8)
     image = image.reshape(image_shape)
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
     diff = np.frombuffer(diff, dtype=np.uint8)
     diff = diff.reshape(diff_shape)
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
     augmentation_choice = [("tiles", diff), (None, None)]
     p = [0.6, 0.4]
     if landmark.size > 0:
@@ -77,6 +79,13 @@ def apply_augmentation(image, image_shape, diff, diff_shape, landmark):
 def dataset_augmentation_worker(x):
     return apply_augmentation(x["crop"], x["crop_shape"], x["diff"], x["diff_shape"], x["landmark"])
 
+def dataset_worker(x):
+    image = x["crop"]
+    image_shape = x["crop_shape"]
+    image = np.frombuffer(image, dtype=np.uint8)
+    image = image.reshape(image_shape)
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    return image
 
 def blackout_facial_feature(image, landmark):
     n_sample = random.randint(1, 3)

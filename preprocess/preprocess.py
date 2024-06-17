@@ -27,7 +27,7 @@ def generate_record(label, crop, landmark, diff):
         landmark["nose"] = np.concatenate((landmark["nose_bridge"], landmark["nose_tip"]), axis=0).tolist()
         landmark["outline"] = np.array(np.concatenate((
             landmark["chin"],
-            landmark["left_eyebrow"],
+            landmark["lef t_eyebrow"],
             landmark["right_eyebrow"]), axis=0)
         )
         landmark["outline"] = landmark["outline"][ConvexHull(landmark["outline"]).vertices].tolist()

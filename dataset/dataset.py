@@ -16,7 +16,7 @@ import pandas as pd
 import pyarrow.parquet as pq
 import cv2
 from tqdm import tqdm
-from .augmentation.augmentation import dataset_augmentation_worker, create_train_transforms
+from .augmentation.augmentation import dataset_augmentation_worker, create_train_transforms, dataset_worker
 
 
 def sample(df, size, random_state=42):
@@ -25,10 +25,12 @@ def sample(df, size, random_state=42):
 
 
 class DeepFakeClassificationDataset(Dataset):
-    def __init__(self, data_path, samples=32, transform=None):
+    def __init__(self, data_path, samples=32, transform=None, mode='train', balance=False):
         self.data = glob(f"{data_path}/*.parquet")
         self.transform = transform
         self.samples = samples
+        self.mode = mode
+        self.balance = balance
 
     def __len__(self):
         return len(self.data)
@@ -42,14 +44,21 @@ class DeepFakeClassificationDataset(Dataset):
         real = df.loc[df["label"] == 'real']
         fake = df.loc[df["label"] == 'fake']
 
-        real_samples = random.randint(1,self.samples-1)
-        fake_samples = self.samples - real_samples
+        if self.balance:
+            real_samples = self.samples//2
+            fake_samples = self.samples//2
+        else:
+            real_samples = random.randint(1,self.samples-1)
+            fake_samples = self.samples - real_samples
+
         real = sample(real,real_samples)
         fake = sample(fake, fake_samples)
 
         df = pd.concat([fake, real])
-
-        df['image'] = df.apply(dataset_augmentation_worker, axis=1)
+        if self.mode == 'train':
+            df['image'] = df.apply(dataset_augmentation_worker, axis=1)
+        else:
+            df['image'] = df.apply(dataset_worker, axis=1)
         df['y'] = df['label'].apply(lambda x:torch.tensor(0) if x == 'fake' else torch.tensor(1))
 
         if self.transform:

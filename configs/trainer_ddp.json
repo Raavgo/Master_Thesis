@@ -6,7 +6,7 @@
 
   "model_checkpoint": {
     "filename": "best-",
-    "dirpath": "/home/ai21m034/master_project/model/weights",
+    "dirpath": "/home/ai21m034/master_project/model/weights/v2/data_balance",
     "save_top_k":1,
     "mode":"min",
     "monitor":"val_loss"
@@ -15,7 +15,7 @@
   "early_stopping": {
     "monitor": "val_loss",
     "mode":"min",
-    "patience":10
+    "patience":5
   },
 
   "logger": {

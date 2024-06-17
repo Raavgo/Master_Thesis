@@ -1,8 +1,11 @@
+import json
+
+import random
 import pytorch_lightning as pl
 import torch
 from torch.optim.lr_scheduler import MultiStepLR, CyclicLR, ExponentialLR, PolynomialLR, LambdaLR, StepLR
 from torch.optim import Adam, AdamW, SGD, RMSprop
-
+import matplotlib.pyplot as plt
 # from sklearn.metrics import log_loss
 from .zoo.convnext import *
 from .zoo.convnext_2 import *
@@ -12,12 +15,15 @@ from .zoo.efficentnet import DeepFakeClassifier as EfficentNetClassifier
 from .optim import *
 from .loss_fn.loss_functions import BinaryCrossentropy, WeightedLosses
 import numpy as np
-from torchmetrics.classification import BinaryPrecisionRecallCurve, BinaryAccuracy, BinaryAUROC, BinaryROC
-import gc
 
+import gc
+import torchmetrics.classification as torchmetrics
 class TrainerFactory:
     def __init__(self, params):
         self.params = params
+
+    def get_path(self):
+        return self.params['path']
 
     def get_size(self):
         return self.params['size']
@@ -93,12 +99,13 @@ class TrainerFactory:
         optim = self.get_optim(model)
         scheduler = self.get_scheduler(optim)
         size = self.get_size()
+        path = self.get_path()
 
-        return GenericModel(model=model, optim=optim, loss_fn=loss_fn, scheduler=scheduler, size=size)
+        return GenericModel(model=model, optim=optim, loss_fn=loss_fn, scheduler=scheduler, size=size, path=path)
 
 
 class GenericModel(pl.LightningModule):
-    def __init__(self, model, optim, loss_fn, scheduler, size, eps=1e-10):
+    def __init__(self, model, optim, loss_fn, scheduler, size, eps=1e-10, path=""):
         super().__init__()
         self.model = model
         self.optim = optim
@@ -106,8 +113,15 @@ class GenericModel(pl.LightningModule):
         self.scheduler = scheduler
         self.size = size
         self.eps = eps
-        self.yp_val = []
-        self.y_val = []
+        self.yp = []
+        self.y = []
+        self.path = path
+
+        # Metrics
+        self.accuracy = torchmetrics.BinaryAccuracy(compute_on_step=False)
+        self.precision_recall_curve = torchmetrics.BinaryPrecisionRecallCurve(compute_on_step=False)
+        self.auroc = torchmetrics.BinaryAUROC(compute_on_step=False)
+        self.roc = torchmetrics.BinaryROC(compute_on_step=False)
         #self.acc = BinaryAccuracy()
 
     def get_base_model(self):
@@ -138,6 +152,7 @@ class GenericModel(pl.LightningModule):
 
 
     def training_step(self, train_batch, batch_idx):
+
         x, y = train_batch['x'], train_batch['y']
 
         size = x.size(0) * x.size(1)
@@ -148,7 +163,7 @@ class GenericModel(pl.LightningModule):
         yp = torch.add(self.model(x), self.eps)
 
         loss = self.loss_fn(yp, y)
-        #print(yp, y,  loss)
+
         self.log("train_loss",loss, sync_dist=True, prog_bar=True, on_step=True,logger=True)
 
         return loss
@@ -167,21 +182,16 @@ class GenericModel(pl.LightningModule):
         yp = self.model(x)
 
         loss = self.loss_fn(yp, y).detach().cpu()
-        #self.yp_val.extend(yp.detach().cpu().tolist())
-        #self.y_val.extend(y.detach().cpu().tolist())
 
         self.log("val_loss",loss, sync_dist=True, prog_bar=True, on_step=True,logger=True)
+        return loss
 
     def on_validation_epoch_end(self):
-        #yp_val = np.array(self.yp_val)
-        #y_val = np.array(self.y_val)
-        #loss = self.loss_fn(yp_val, y_val)
-        #self.log("total_val_loss", loss, sync_dist=True, prog_bar=True, logger=True)
-        #self.yp_val, self.y_val = [], []
         gc.collect()
 
 
     def test_step(self, test_batch, batch_idx):
+        self.model.eval()
         x, y = test_batch['x'], test_batch['y']
 
         size = x.size(0) * x.size(1)
@@ -190,6 +200,48 @@ class GenericModel(pl.LightningModule):
         y = torch.reshape(y, (size, 1))
 
         yp = self.model(x)
+        loss = self.loss_fn(yp, y)
+        yp_prob = torch.sigmoid(yp)
 
-        loss = self.loss_fn(yp, y).detach().cpu()
+        # Update metrics
+        self.accuracy(yp_prob, y.long())
+        torch.use_deterministic_algorithms(False)
+        self.precision_recall_curve(yp_prob, y.long())
+        self.auroc(yp_prob, y.long())
+        self.roc(yp_prob, y.long())
+        torch.use_deterministic_algorithms(True)
+
         self.log("test_loss",loss, sync_dist=True, prog_bar=True, on_step=True,logger=True)
+        return loss
+
+    def on_test_end(self):
+        torch.use_deterministic_algorithms(False)
+        roc_auc = self.auroc.compute()
+        acc = self.accuracy.compute()
+
+        precision, recall, _ = self.precision_recall_curve.compute()
+        fpr, tpr, _ = self.roc.compute()
+        random_value = random.randint(10000, 99999)
+        plt.title('Receiver Operating Characteristic')
+        plt.plot(fpr.cpu(), tpr.cpu(), 'b', label='AUC = %0.2f' % roc_auc)
+        plt.legend(loc='lower right')
+        plt.plot([0, 1], [0, 1], 'r--')
+        plt.xlim([0, 1])
+        plt.ylim([0, 1])
+        plt.ylabel('True Positive Rate')
+        plt.xlabel('False Positive Rate')
+        plt.savefig(f'{self.path}/roc{random_value}.png')
+        torch.use_deterministic_algorithms(True)
+
+        results = {
+            "acc": acc,
+            "roc_auc": roc_auc,
+            "precision": precision,
+            "recall": recall,
+            "fpr":fpr,
+            "tpr":tpr
+        }
+
+        torch.save(results, f'{self.path}/metrics{random_value}')
+
+        return

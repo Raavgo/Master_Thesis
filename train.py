@@ -13,36 +13,46 @@ from deepspeed.utils.zero_to_fp32 import load_state_dict_from_zero_checkpoint
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train Model")
-    parser.add_argument("--trainer_config", help="JSON config file for trainer", required=True)
-    parser.add_argument("--model_config", help="JSON config file for the model", required=True)
+    parser.add_argument("--config", help="JSON config file for training", required=True)
     parser.add_argument("--nodes", help="(Optional) to Override train config with slurm config", required=False)
     parser.add_argument("--tasks", help="(Optional) to Override train config with slurm config", required=False)
     args = parser.parse_args()
 
-    with open(args.trainer_config) as config_file:
-        trainer_config = json.load(config_file)
+    with open(args.config) as config_file:
+        config = json.load(config_file)
 
-    with open(args.model_config) as config_file:
-        model_config = json.load(config_file)
+    project_base = config["project_base"]
+    trainer_config = config["trainer_config"]
+    trainer_config["train_path"] = project_base + trainer_config["train_path"]
+    trainer_config["validation_path"]= project_base + trainer_config["validation_path"]
+    trainer_config["test_path"]= project_base + trainer_config["test_path"]
+    trainer_config["logger"]["save_dir"]= project_base + trainer_config["logger"]["save_dir"]
+
+    model_config = config["model_config"]
+    model_config["name"] = config["name"]
+    model_config["path"] = project_base + config["path"]
 
     model_name = model_config["network"]
 
     train_data = DeepFakeClassificationDataset(
         trainer_config["train_path"],
         samples=model_config["sample_size"],
-        transform=create_train_transforms(model_config["size"])
+        transform=create_train_transforms(model_config["size"]),
+        mode='test'
     )
 
     validation_data = DeepFakeClassificationDataset(
         trainer_config["validation_path"],
         samples=model_config["sample_size"],
-        transform=create_val_transforms(model_config["size"])
+        transform=create_val_transforms(model_config["size"]),
+        mode='test'
     )
 
     test_data = DeepFakeClassificationDataset(
         trainer_config["test_path"],
         samples=model_config["sample_size"],
-        transform=create_val_transforms(model_config["size"])
+        transform=create_val_transforms(model_config["size"]),
+        mode='test'
     )
 
     train_dl = DataLoader(
@@ -62,14 +72,14 @@ if __name__ == "__main__":
         pin_memory=True,
     )
 
-    """test_dl = DataLoader(
+    test_dl = DataLoader(
         test_data,
         batch_size=model_config["batch_size"],
         num_workers=trainer_config["num_workers"],
         shuffle=False,
         pin_memory=True,
         persistent_workers=True
-    )"""
+    )
 
     trainer_config["model_checkpoint"]["filename"] += model_name
     callbacks = [
@@ -100,4 +110,9 @@ if __name__ == "__main__":
         model=lightning_model,
         train_dataloaders=train_dl,
         val_dataloaders=validation_dl
+    )
+
+    trainer.test(
+        model=lightning_model,
+        dataloaders=test_dl
     )

@@ -6,7 +6,7 @@ from torch import nn
 from torch.nn.modules.dropout import Dropout
 from torch.nn.modules.linear import Linear
 from torch.nn.modules.pooling import AdaptiveAvgPool2d
-
+from torch import sigmoid
 
 encoder_params = {
     "convnextv2_huge_384": {
@@ -24,7 +24,12 @@ encoder_params = {
     "convnextv2_large_224": {
         "features": 1536,
         "init_op": partial(create_model,'convnextv2_large.fcmae_ft_in22k_in1k', pretrained=True, num_classes=0)
+    },
+    "convnextv2_small_384": {
+        "features": 768,
+        "init_op": partial(create_model, 'convnext_small.in12k_ft_in1k_384', pretrained=True, num_classes=0)
     }
+
 }
 
 class DeepFakeClassifier(nn.Module):

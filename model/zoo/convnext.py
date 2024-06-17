@@ -7,6 +7,7 @@ from torch import nn
 from torch.nn.modules.dropout import Dropout
 from torch.nn.modules.linear import Linear
 from torch.nn.modules.pooling import AdaptiveAvgPool2d
+from torch import sigmoid
 
 encoder_params = {
     "convnext_large_clip_320": {
@@ -40,4 +41,5 @@ class DeepFakeClassifier(nn.Module):
         x = self.avg_pool(x).flatten(1)
         x = self.dropout(x)
         x = self.fc(x)
+        x = sigmoid(x)
         return x
